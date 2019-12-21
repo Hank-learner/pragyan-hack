@@ -28,6 +28,8 @@ use the following command to run the project:
 
 ```sh
 flask run --host=0.0.0.0 --port=12345
+or
+python app.py
 ```
 
 ### Sql initialization (mysql -server)
