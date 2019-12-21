@@ -38,9 +38,7 @@ def login():
         user_id = 0
         # mysql connection
         cursor = mysql.connection.cursor()
-        result = cursor.execute(
-            "SELECT  * from users where username=%s",[usernamegot]
-        )
+        result = cursor.execute("SELECT  * from users where username=%s", [usernamegot])
         if result > 0:
             data = cursor.fetchone()
             password = str(data["password"])
@@ -61,17 +59,32 @@ def login():
 
 @app.route("/location_update", methods=["POST"])
 def location_update():
-    lattitude = request.form["lattitude"]
+    latitude = request.form["latitude"]
     longitude = request.form["longitude"]
     user_id = request.form["user_id"]
+    timestamp = request.form["timestamp"]
     # mysql execution
+    cursor = mysql.connection.cursor()
+    cursor.execute(
+        "UPDATE helpers set latitude=%s,longitude=%s,location_timestamp=%s WHERE user_id=%s",
+        [latitude, longitude, timestamp, user_id],
+    )
+
+    if mysql.connection.commit():
+        return {"message": "success"}
+    else:
+        return {"message": "failure"}
+    cursor.close()
 
 
 @app.route("/distress", methods=["POST"])
 def distress():
-    lattitude = request.form["lattitude"]
+    latitude = request.form["latitude"]
     longitude = request.form["longitude"]
-    user_location = (lattitude, longitude)
+    user_id = request.form["user_id"]
+    timestamp = request.form["timestamp"]
+
+    user_location = (latitude, longitude)
     # mysql execution
     cursor = mysql.connection.cursor()
     result = cursor.execute("SELECT * FROM  helpers")
@@ -80,10 +93,10 @@ def distress():
     for helper in helpers:
         if haversine(user_location, (helper.lattitude, helper.longitude)) < 0.5:
             helper_object = {
-                id: helper.id,
-                name: helper.name,
-                lattitude: helper.lattitude,
-                longitude: helper.longitude,
+                "id": helper.id,
+                "name": helper.name,
+                "latitude": helper.latitude,
+                "longitude": helper.longitude,
             }
             out_json.append(helper_object)
     cursor.close()
