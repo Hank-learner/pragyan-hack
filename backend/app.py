@@ -1,6 +1,6 @@
-from flask import Flask, request
+from flask import Flask, request, logging
 from flask_mysqldb import MySQL
-from haversine import haversine, Unit
+from haversine import haversine
 
 # from passlib.hash import sha256_crypt
 # from functools import wraps
@@ -23,7 +23,7 @@ mysql = MySQL(app)
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        app.logger("inside")
+        # app.logger("inside")
         return "post HELLO"
     return "get hello"
 
@@ -33,30 +33,28 @@ def login():
     if request.method == "POST":
         usernamegot = request.form["user"]
         passwordgot = request.form["pass"]
-
         output = "failure"
         is_helper = False
+        user_id = 0
         # mysql connection
         cursor = mysql.connection.cursor()
         result = cursor.execute(
-            "SELECT  * from users where name='{0}'".format(usernamegot)
+            "SELECT  * from users where username=%s",[usernamegot]
         )
-
         if result > 0:
             data = cursor.fetchone()
-            password = data["password"]
-            password = str(password)
-
+            password = str(data["password"])
+            user_id = data["user_id"]
             if password == passwordgot:
                 output = "success"
                 helper_result = cursor.execute(
-                    "SELECT * from helpers where user_id=%s", [data["user_id"]]
+                    "SELECT * from helpers where user_id=%s", [user_id]
                 )
                 if helper_result > 0:
                     is_helper = True
 
         cursor.close()
-        return {"message": output, "user_id": data["user_id"], "is_helper": is_helper}
+        return {"message": output, "user_id": user_id, "is_helper": is_helper}
     else:
         return "You are not supposed to be here: You have registered to be hacked by your activity"
 
