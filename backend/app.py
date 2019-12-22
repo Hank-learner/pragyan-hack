@@ -1,6 +1,12 @@
-from flask import Flask, request, logging
+from flask import Flask, request, logging, jsonify
 from flask_mysqldb import MySQL
 from haversine import haversine
+from decimal import Decimal
+import json
+import numpy as np
+from datetime import datetime
+import time
+
 
 # from passlib.hash import sha256_crypt
 # from functools import wraps
@@ -23,9 +29,8 @@ mysql = MySQL(app)
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        # app.logger("inside")
         return "post HELLO"
-    return "get hello"
+    return {}
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -65,12 +70,12 @@ def location_update():
     timestamp = request.form["timestamp"]
     # mysql execution
     cursor = mysql.connection.cursor()
-    cursor.execute(
-        "UPDATE helpers set latitude=%s,longitude=%s,location_timestamp=%s WHERE user_id=%s",
-        [latitude, longitude, timestamp, user_id],
+    statement = "UPDATE helpers set latitude={0},longitude={1},location_timestamp='{2}' WHERE user_id={3}".format(
+        latitude, longitude, timestamp, user_id
     )
-
-    if mysql.connection.commit():
+    print("[log]:  " + statement)
+    if cursor.execute(statement):
+        mysql.connection.commit()
         return {"message": "success"}
     else:
         return {"message": "failure"}
@@ -84,23 +89,40 @@ def distress():
     user_id = request.form["user_id"]
     timestamp = request.form["timestamp"]
 
-    user_location = (latitude, longitude)
+    user_location = (Decimal(latitude), Decimal(longitude))
+    cur_ts = datetime.timestamp(datetime.now())
     # mysql execution
     cursor = mysql.connection.cursor()
+    cursor.execute(
+        "INSERT INTO situations (user_id,situation_timestamp,latitude,longitude) VALUES ({0},'{1}',{2},{3})".format(
+            user_id, timestamp, latitude, longitude
+        )
+    )
+    mysql.connection.commit()
     result = cursor.execute("SELECT * FROM  helpers")
     helpers = cursor.fetchall()
     out_json = []
+
     for helper in helpers:
-        if haversine(user_location, (helper.lattitude, helper.longitude)) < 0.5:
+        helper_location = (Decimal(helper["latitude"]), Decimal(helper["longitude"]))
+
+        dis = haversine(user_location, helper_location)
+        print("distance:{0}".format(dis))
+
+        timestamp_str = helper["location_timestamp"]
+        str_timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+        time_sec = time.mktime(str_timestamp.timetuple())
+
+        if dis < 10 and cur_ts - time_sec <= 20:
             helper_object = {
-                "id": helper.id,
-                "name": helper.name,
-                "latitude": helper.latitude,
-                "longitude": helper.longitude,
+                "helper_id": helper["user_id"],
+                "name": helper["name"],
+                "latitude": str(helper["latitude"]),
+                "longitude": str(helper["longitude"]),
             }
             out_json.append(helper_object)
     cursor.close()
-    return out_json
+    return jsonify([j for j in out_json])
 
 
 @app.route("/situation_messages", methods=["POST"])
