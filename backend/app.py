@@ -109,7 +109,7 @@ def distress():
         dis = haversine(user_location, helper_location)
         print("distance:{0}".format(dis))
 
-        timestamp_str = helper["location_timestamp"]
+        timestamp_str = str(helper["location_timestamp"])
         str_timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
         time_sec = time.mktime(str_timestamp.timetuple())
 

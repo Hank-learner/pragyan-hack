@@ -1,2 +1,4 @@
 p_hack_venv/
 __pycache__/
+sendansms.py
+settingsexotel.py
